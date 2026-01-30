@@ -1,9 +1,23 @@
+import os
+import sys
 import time
 import logging
 from io import BytesIO
 from PIL import Image, ImageFilter
 from tkinter import filedialog, messagebox, Toplevel, Entry, Menu, Label, Button, Tk
 from pickle import dump, load
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        # Get the absolute path to the directory this script is in
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+    return os.path.join(base_path, relative_path)
 
 # =========================
 # LOGGING CONFIG
@@ -180,7 +194,18 @@ def insert_file():
 root = Tk()
 root.title("Secura")
 root.geometry("800x600")
-root.iconbitmap("icon.ico")
+
+icon_target = resource_path("icon.ico")
+
+if os.path.exists(icon_target):
+    try:
+        root.iconbitmap(icon_target)
+        log(f"SUCCESS | Loaded icon from {icon_target}")
+    except Exception as e:
+        log(f"ERROR | Icon file exists but Tkinter failed to load it: {e}")
+else:
+    log(f"ERROR | Icon file NOT FOUND at: {icon_target}")
+
 
 menu = Menu(root)
 root.config(menu=menu)
