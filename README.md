@@ -54,7 +54,6 @@ To create a secure image file:
 3. Select the image file you want to convert.
 4. Then Enter the Expire time (in seconds) and password if it has to be password protected and then submit .
 6. Then enter the name of the file to be saved as a encrypted one in the memory.
-7.
 
 
 To view a secure image file:
