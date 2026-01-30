@@ -109,48 +109,70 @@ def opener():
 # =========================
 # Create Secure File
 # =========================
+import os # Make sure this is at the very top of your file!
+
+# =========================
+# Create Secure File
+# =========================
 def insert_file():
-    def fr():
+    def fr(event=None):
         p1 = e1.get()
         p2 = e2.get()
 
+        # Input validation
         time_file = int(p1) if p1.isnumeric() else 60
-
         givenPassword = bool(p2.strip())
         passkey = p2 if givenPassword else ""
 
+        # Create the object
         tmp = secureimg(root.filename, time_file, givenPassword, passkey)
-        
 
-        save_path = filedialog.asksaveasfile(
+        # 1. Ask where to save (Returns a string path)
+        save_path = filedialog.asksaveasfilename(
             title="Save Secure File",
-            filetypes=(("secure file","*.skr"),)
+            filetypes=(("secure file", "*.skr"),),
+            defaultextension=".skr"
         )
 
-        if root.filename1:
-            dump(tmp, open(str(root.filename1.name), "wb"))
-            log(f"SAVED | secure_file={root.filename1.name}")
-            inerter.destroy() # Closes the settings window
-            messagebox.showinfo("Success", f"File saved successfully as {root.filename1.name}")
+        if save_path:
+            # 2. Refactor the name: strip old extension and force .skr
+            # os.path.splitext("path/file.png") -> ("path/file", ".png")
+            clean_name = os.path.splitext(save_path)[0] + ".skr"
 
-    inerter = Toplevel()
+            # 3. Save the file
+            with open(clean_name, "wb") as f:
+                dump(tmp, f)
+            
+            log(f"SAVED | secure_file={clean_name}")
+            
+            # 4. UI Cleanup
+            inerter.destroy() 
+            messagebox.showinfo("Success", f"File saved successfully as:\n{os.path.basename(clean_name)}")
 
+    # Selection of source image
     root.filename = filedialog.askopenfilename(
         title="Select Image",
         filetypes=(("images","*.png *.jpg *.jpeg"),)
     )
+    
     if not root.filename:
         return
 
-    Label(inerter, text="Expire time (seconds)").grid(row=0,column=0,padx=10,pady=5)
+    # Create the settings popup
+    inerter = Toplevel()
+    inerter.title("Security Settings")
+
+    Label(inerter, text="Expire time (seconds)").grid(row=0, column=0, padx=10, pady=5)
     e1 = Entry(inerter)
-    e1.grid(row=0,column=1)
+    e1.insert(0, "60") # Default value for convenience
+    e1.grid(row=0, column=1, padx=10)
 
-    Label(inerter, text="Password (optional)").grid(row=1,column=0,padx=10,pady=5)
+    Label(inerter, text="Password (optional)").grid(row=1, column=0, padx=10, pady=5)
     e2 = Entry(inerter, show="*")
-    e2.grid(row=1,column=1)
+    e2.grid(row=1, column=1, padx=10)
 
-    Button(inerter, text="Submit", command=fr).grid(row=2,column=0,pady=15)
+    Button(inerter, text="Secure & Save", command=fr).grid(row=2, column=0, columnspan=2, pady=15)
+    inerter.bind('<Return>', fr)
 
 # =========================
 # UI
@@ -162,11 +184,11 @@ root.geometry("800x600")
 menu = Menu(root)
 root.config(menu=menu)
 
-m1 = Menu(menu)
+m1 = Menu(menu, tearoff=0)
 menu.add_cascade(label="Create File", menu=m1)
 m1.add_command(label="Secure Image", command=insert_file)
 
-m2 = Menu(menu)
+m2 = Menu(menu, tearoff=0)
 menu.add_cascade(label="View File", menu=m2)
 m2.add_command(label="Open Secure File", command=opener)
 
