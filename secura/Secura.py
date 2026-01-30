@@ -180,6 +180,7 @@ def insert_file():
 root = Tk()
 root.title("Secura")
 root.geometry("800x600")
+root.iconbitmap("icon.ico")
 
 menu = Menu(root)
 root.config(menu=menu)
