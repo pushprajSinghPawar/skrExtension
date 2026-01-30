@@ -52,6 +52,8 @@ Link :: https://github.com/pushprajSinghPawar/skrExtension/releases/tag/V_1.0
 
 ## User Docs
 
+To create a secure image file:
+
 1. Run the program.
 2. Click on "Create File" in the menu.
 3. Select the image file you want to convert.
