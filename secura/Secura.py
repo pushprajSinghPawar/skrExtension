@@ -1,122 +1,175 @@
-import time # for file make time and destructing time knowlege gathering.....
-# from tkinter import * #Gui for our desktop applic
-from PIL import Image,ImageFilter # this is our image library that helps in opening the image..
-from tkinter import filedialog,messagebox,Toplevel,Entry,Menu,Label,Button,Tk # extra things..
-from pickle import dump, load # file handling done by this guy...
-# class to create the .skr extension which is mapped to file 
+import time
+import logging
+from io import BytesIO
+from PIL import Image, ImageFilter
+from tkinter import filedialog, messagebox, Toplevel, Entry, Menu, Label, Button, Tk
+from pickle import dump, load
+
+# =========================
+# LOGGING CONFIG
+# =========================
+logging.basicConfig(
+    filename="secura.log",
+    level=logging.INFO,
+    format="%(asctime)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+def log(msg):
+    logging.info(msg)
+
+# =========================
+# Secure Image Class
+# =========================
 class secureimg:
     def __init__(self, Rasta, samay, gopniyata, kavach) -> None:
-        self.Img = Image.open(str(Rasta)) # the actual image file for which this all thing is done ...
-        self.MakeTime  = time.time() # this will store at what time .skr file and object for it is made..
-        self.Duration  = samay # dUration after making which the file is nul and void..
-        self.DestructTime = self.MakeTime + self.Duration # the time at which file will be corruoted or say not good to see..
-        self.ThereIsPaswword = gopniyata # password proctection is give or not ..
-        self.Password = kavach # password proctection is give then what is it actually..
+        with open(Rasta, "rb") as f:
+            self.image_bytes = f.read()
 
-    # you want to see the file this is the function for it..
+        self.MakeTime = time.time()
+        self.Duration = samay
+        self.DestructTime = self.MakeTime + self.Duration
+        self.ThereIsPaswword = gopniyata
+        self.Password = kavach
+        self.corrupted = False
+        self.original_name = Rasta
+
+        log(
+            f"CREATED | image={Rasta} | "
+            f"password={'yes' if gopniyata else 'no'} | "
+            f"expires_in={samay}s"
+        )
+
+    def get_image(self):
+        return Image.open(BytesIO(self.image_bytes))
+
     def dikado(image):
+        def show_image(img):
+            img.show()
+
         def dr():
             entered_password = e3.get()
-            if(entered_password == image.Password):
-                image.Img.show()
+            if entered_password == image.Password:
+                log("OPENED | status=success (password ok)")
+                img = image.get_image()
+                show_image(img)
+                open_window.destroy()
             else:
-                messagebox.showerror(title="Fas gaye ap to", message="BHAI PASSWORD SAHI DALO time NIKAL JA RAHA HAI")
-                dr()
-            return
+                log("OPENED | status=wrong_password")
+                messagebox.showerror("Wrong Password", "Incorrect password")
 
-        # there is apassword and file is not corrupted yet...
-        if (image.DestructTime > time.time() and image.ThereIsPaswword==True):
-            open_window = Toplevel()
-            label3 = Label(open_window, text="Enter the encrypted key")
-            e3 = Entry(open_window)
-            label3.grid(row=1,column=0,padx=20,pady=10)
-            e3.grid(row=2,column=2)
-            Submit_btn = Button(open_window, text="submit",command=dr)
-            Submit_btn.grid(row=3,column=0,padx=20, pady=10)
+        # ===== FILE STILL VALID =====
+        if image.DestructTime > time.time():
 
-        # File has not been corupted by the program  and has no password
-        elif(image.DestructTime > time.time()):
-            image.Img.show()
+            if image.ThereIsPaswword:
+                open_window = Toplevel()
+                Label(open_window, text="Enter password").grid(row=0,column=0,padx=20,pady=10)
+                e3 = Entry(open_window, show="*")
+                e3.grid(row=1,column=0,padx=20,pady=10)
+                Button(open_window, text="Submit", command=dr).grid(row=2,column=0,pady=10)
 
+            else:
+                log("OPENED | status=success (no password)")
+                img = image.get_image()
+                show_image(img)
+
+        # ===== FILE EXPIRED =====
         else:
-            if(image.ThereIsPaswword==False):# No password on the file but file is corrupted
-                t=image.Img
-                t=t.crop((0,0,t.width/2,t.height/5))# showing the corrupted file...
-                t=t.filter(ImageFilter.BoxBlur(7))
-                t.show()
-            else:
-                # file is corrupt and due to fact it was encrypted it was deleted from the System or corrupted badly.
-                image.Img = image.Img.crop( (0,0,image.Img.width/2,image.Img.height/3) )
-                dump(image , open(str(root.filename2), "wb"))
-                image.Img.show()
+            log("EXPIRED | file time exceeded, corrupting image")
 
+            img = image.get_image()
+            img = img.crop((0, 0, img.width // 2, img.height // 5))
+            img = img.filter(ImageFilter.BoxBlur(7))
+
+            buf = BytesIO()
+            img.save(buf, format="PNG")
+            image.image_bytes = buf.getvalue()
+            image.corrupted = True
+
+            dump(image, open(str(root.filename2), "wb"))
+
+            log("EXPIRED | image corrupted and saved")
+            show_image(img)
+
+# =========================
+# Open Secure File
+# =========================
 def opener():
-    root.filename2 = filedialog.askopenfilename(initialdir="/", title="Select A File",  filetypes=(("secure files","*.skr"),("all files", "*.*")))
+    root.filename2 = filedialog.askopenfilename(
+        title="Select Secure File",
+        filetypes=(("secure files","*.skr"),)
+    )
+    if not root.filename2:
+        return
+
     file_to_object = load(open(root.filename2, "rb"))
+    log(f"OPEN_ATTEMPT | file={root.filename2}")
     secureimg.dikado(file_to_object)
 
+# =========================
+# Create Secure File
+# =========================
 def insert_file():
     def fr():
-        p1=e1.get()#p1 = time in seconds after which file must be corrupted.........
-        p2=e2.get() # p2 = password carrting variable 
+        p1 = e1.get()
+        p2 = e2.get()
 
-        #get the details ...
-        time_file=0 # in seconds 
-        if p1.isnumeric:
-            time_file = int(p1)
-        else:
-            time_file = 60
+        time_file = int(p1) if p1.isnumeric() else 60
 
-        givenPassword = False  # setting the password or not
-        passkey = "" # The actual password
-
-        if p2=="":
-            givenPassword = False
-            passkey=""
-        else:
-            passkey = p2
-            givenPassword = True
+        givenPassword = bool(p2.strip())
+        passkey = p2 if givenPassword else ""
 
         tmp = secureimg(root.filename, time_file, givenPassword, passkey)
-        root.filename1 = filedialog.asksaveasfile(initialdir="/", title = "Select file",filetypes = (("all files","*.*"),))
-        dump(tmp , open(str(root.filename1.name), "wb"))
+        
 
-        return 
+        save_path = filedialog.asksaveasfile(
+            title="Save Secure File",
+            filetypes=(("secure file","*.skr"),)
+        )
+
+        if root.filename1:
+            dump(tmp, open(str(root.filename1.name), "wb"))
+            log(f"SAVED | secure_file={root.filename1.name}")
+            inerter.destroy() # Closes the settings window
+            messagebox.showinfo("Success", f"File saved successfully as {root.filename1.name}")
 
     inerter = Toplevel()
-    #file to be converted to .skr is asked by the code here from this line of code
-    root.filename = str(filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=(("all files", "*.*"), ("jpg files", "*.jpg"),)))
 
-    label1 = Label(inerter, text="Enter the time period in seconds after which the file must be destroyed/corruped in seconds")
+    root.filename = filedialog.askopenfilename(
+        title="Select Image",
+        filetypes=(("images","*.png *.jpg *.jpeg"),)
+    )
+    if not root.filename:
+        return
+
+    Label(inerter, text="Expire time (seconds)").grid(row=0,column=0,padx=10,pady=5)
     e1 = Entry(inerter)
-    label1.grid(row=1,column=0,padx=20,pady=10)
-    e1.grid(row=1,column=2)
-    
+    e1.grid(row=0,column=1)
 
-    label2 = Label(inerter, text="Enter the encrypted key Leave it you dont want encryption..")
-    e2 = Entry(inerter)
-    label2.grid(row=2,column=0,padx=20,pady=10)
-    e2.grid(row=2,column=2)
+    Label(inerter, text="Password (optional)").grid(row=1,column=0,padx=10,pady=5)
+    e2 = Entry(inerter, show="*")
+    e2.grid(row=1,column=1)
 
-    Submit_btn = Button(inerter, text="submit",command=fr)
-    Submit_btn.grid(row=4,column=0,padx=20,pady=10)
+    Button(inerter, text="Submit", command=fr).grid(row=2,column=0,pady=15)
 
+# =========================
+# UI
+# =========================
 root = Tk()
-# root = Tk()#main Window
-root.title('secura') # application is SECURA becuase why not does it not secure your image.
-root.geometry("800x600") #lambai motai avam golai
+root.title("Secura")
+root.geometry("800x600")
 
-my_menu = Menu(root) # menu uapar ka jo hota hai na file new edit ms word me ek liine me hita hai jo
-root.config(menu=my_menu)# configuration of menu
+menu = Menu(root)
+root.config(menu=menu)
 
-Create_a_file = Menu(my_menu)# islke liye kya comment karu lol samjh jao
-my_menu.add_cascade(label="Create a File", menu=Create_a_file)# adding the Create the file menu item in the menu
-Create_a_file.add_command(label="insert a file to make it secure", command=insert_file)
+m1 = Menu(menu)
+menu.add_cascade(label="Create File", menu=m1)
+m1.add_command(label="Secure Image", command=insert_file)
 
-View_a_file = Menu(my_menu)
-my_menu.add_cascade(label= "View the File", menu=View_a_file)# adding the View the file menu item in the menu
-View_a_file.add_command(label="View the file", command=opener)# view the file...
+m2 = Menu(menu)
+menu.add_cascade(label="View File", menu=m2)
+m2.add_command(label="Open Secure File", command=opener)
 
-my_menu.add_command(label="Exit",command=root.quit)# this will theow you out actually.. i am not joking
+menu.add_command(label="Exit", command=root.quit)
 
-root.mainloop()#loop me gane sunte jao
+root.mainloop()

@@ -2,8 +2,6 @@
 
 This Python project allows you to create secure image files (.skr) and view them using a secure image viewer. The viewer ensures that the image can only be viewed under certain conditions, such as a specified time period or password protection.
 
-`I have given the executable file for anyone to download.`
-
 ## Prerequisites
 
 Make sure you have the following libraries installed:
@@ -19,18 +17,45 @@ Make sure you have the following libraries installed:
 
 You can install these libraries using `pip`:
 
+## Installation Guide
 
-## Usage
+To create a secure image file:
+
+### Option 1: Running from Source (Recommended for Developers)
+
+Use this method if you want to view the code, make changes, or run the program using a Python interpreter.
+
+1. **Navigate to the Project Root:**
+   Open your terminal or command prompt and change the directory to the folder where you downloaded the project:
+   **Bash**
+
+   ```
+   cd path/to/SKREXTENSION
+   ```
+2. **Install Dependencies:**
+   Run the following command to install all necessary libraries listed in the `requirements.txt` file:
+   **Bash**
+
+   ```
+   pip install -r requirements.txt
+   ```
+3. **Run the Program:**
+   Once the installation is complete, launch the application using:
+   **Bash**
+
+   ```
+   python Secura.py
+   ```
 
 To create a secure image file:
 
 1. Run the program.
-2. Click on "Create a File" in the menu.
-3. Select the image file you want to secure.
-4. Enter the time period (in seconds) after which the file should be destroyed or corrupted.
-5. Optionally, enter a password for additional protection.
-6. Choose whether the file can only be opened on the current device or any device.
-7. Click "Submit" to create the secure image file (.skr).
+2. Click on "Create File" in the menu.
+3. Select the image file you want to convert.
+4. Then Enter the Expire time (in seconds) and password if it has to be password protected and then submit .
+6. Then enter the name of the file to be saved as a encrypted one in the memory.
+7.
+
 
 To view a secure image file:
 
