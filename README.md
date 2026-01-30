@@ -47,7 +47,9 @@ Use this method if you want to view the code, make changes, or run the program u
    python Secura.py
    ```
 
-To create a secure image file:
+### Option 2: Install .exe from the gtihub-release itself.
+Link :: https://github.com/pushprajSinghPawar/skrExtension/releases/tag/V_1.0
+
 
 1. Run the program.
 2. Click on "Create File" in the menu.
