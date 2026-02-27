@@ -1,23 +1,34 @@
 import os
 import sys
 import time
+import json
 import logging
 from io import BytesIO
-from PIL import Image, ImageFilter
-from tkinter import filedialog, messagebox, Toplevel, Entry, Menu, Label, Button, Tk
 from pickle import dump, load
 
+from PIL import Image, ImageFilter, ImageTk
+from tkinter import (
+    filedialog,
+    messagebox,
+    Toplevel,
+    Entry,
+    Menu,
+    Label,
+    Button,
+    Tk,
+    LabelFrame,
+)
 
+# =========================
+# Resource Path (PyInstaller Safe)
+# =========================
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        # Get the absolute path to the directory this script is in
         base_path = os.path.dirname(os.path.abspath(__file__))
-
     return os.path.join(base_path, relative_path)
+
 
 # =========================
 # LOGGING CONFIG
@@ -32,192 +43,248 @@ logging.basicConfig(
 def log(msg):
     logging.info(msg)
 
+
+# =========================
+# CONFIG (Save Folder Preference)
+# =========================
+CONFIG_FILE = "config.json"
+
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            return json.load(f)
+    return {"default_save_path": os.path.expanduser("~")}
+
+def save_config(config):
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f)
+
+config = load_config()
+
+
 # =========================
 # Secure Image Class
 # =========================
-class secureimg:
-    def __init__(self, Rasta, samay, gopniyata, kavach) -> None:
-        with open(Rasta, "rb") as f:
+class SecureImage:
+    def __init__(self, path, duration, has_password, password):
+        with open(path, "rb") as f:
             self.image_bytes = f.read()
 
-        self.MakeTime = time.time()
-        self.Duration = samay
-        self.DestructTime = self.MakeTime + self.Duration
-        self.ThereIsPaswword = gopniyata
-        self.Password = kavach
+        self.make_time = time.time()
+        self.duration = duration
+        self.destruct_time = self.make_time + duration
+        self.has_password = has_password
+        self.password = password
         self.corrupted = False
-        self.original_name = Rasta
 
-        log(
-            f"CREATED | image={Rasta} | "
-            f"password={'yes' if gopniyata else 'no'} | "
-            f"expires_in={samay}s"
-        )
+        log(f"CREATED | image={path} | password={has_password} | expires_in={duration}s")
 
     def get_image(self):
         return Image.open(BytesIO(self.image_bytes))
 
-    def dikado(image):
-        def show_image(img):
-            img.show()
-
-        def dr():
-            entered_password = e3.get()
-            if entered_password == image.Password:
-                log("OPENED | status=success (password ok)")
-                img = image.get_image()
-                show_image(img)
-                open_window.destroy()
+    def show(self):
+        if self.destruct_time > time.time():
+            if self.has_password:
+                self.ask_password()
             else:
-                log("OPENED | status=wrong_password")
-                messagebox.showerror("Wrong Password", "Incorrect password")
-
-        # ===== FILE STILL VALID =====
-        if image.DestructTime > time.time():
-
-            if image.ThereIsPaswword:
-                open_window = Toplevel()
-                Label(open_window, text="Enter password").grid(row=0,column=0,padx=20,pady=10)
-                e3 = Entry(open_window, show="*")
-                e3.grid(row=1,column=0,padx=20,pady=10)
-                Button(open_window, text="Submit", command=dr).grid(row=2,column=0,pady=10)
-
-            else:
-                log("OPENED | status=success (no password)")
-                img = image.get_image()
-                show_image(img)
-
-        # ===== FILE EXPIRED =====
+                log("OPENED | success (no password)")
+                display_image(self.get_image())
         else:
-            log("EXPIRED | file time exceeded, corrupting image")
+            self.expire_image()
 
-            img = image.get_image()
-            img = img.crop((0, 0, img.width // 2, img.height // 5))
-            img = img.filter(ImageFilter.BoxBlur(7))
+    def ask_password(self):
+        def check():
+            if entry.get() == self.password:
+                log("OPENED | success (password ok)")
+                display_image(self.get_image())
+                pw_window.destroy()
+            else:
+                log("OPENED | wrong password")
+                messagebox.showerror("Error", "Incorrect Password")
 
-            buf = BytesIO()
-            img.save(buf, format="PNG")
-            image.image_bytes = buf.getvalue()
-            image.corrupted = True
+        pw_window = Toplevel(root)
+        pw_window.title("Password Required")
 
-            dump(image, open(str(root.filename2), "wb"))
+        Label(pw_window, text="Enter Password").pack(padx=20, pady=10)
+        entry = Entry(pw_window, show="*")
+        entry.pack(padx=20, pady=5)
+        Button(pw_window, text="Submit", command=check).pack(pady=10)
 
-            log("EXPIRED | image corrupted and saved")
-            show_image(img)
+    def expire_image(self):
+        log("EXPIRED | Corrupting image")
+
+        img = self.get_image()
+        img = img.crop((0, 0, img.width // 2, img.height // 5))
+        img = img.filter(ImageFilter.BoxBlur(7))
+
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        self.image_bytes = buffer.getvalue()
+        self.corrupted = True
+
+        display_image(img)
+
+
+# =========================
+# Image Display
+# =========================
+def display_image(img):
+    global image_label
+
+    max_size = (780, 520)
+    img.thumbnail(max_size)
+
+    tk_img = ImageTk.PhotoImage(img)
+    image_label.config(image=tk_img)
+    image_label.image = tk_img
+
+
+def clear_preview():
+    image_label.config(image="")
+    image_label.image = None
+
 
 # =========================
 # Open Secure File
 # =========================
-def opener():
-    root.filename2 = filedialog.askopenfilename(
+def open_secure_file():
+    file_path = filedialog.askopenfilename(
         title="Select Secure File",
-        filetypes=(("secure files","*.skr"),)
+        filetypes=(("Secure Files", "*.skr"),)
     )
-    if not root.filename2:
+    if not file_path:
         return
 
-    file_to_object = load(open(root.filename2, "rb"))
-    log(f"OPEN_ATTEMPT | file={root.filename2}")
-    secureimg.dikado(file_to_object)
+    try:
+        with open(file_path, "rb") as f:
+            obj = load(f)
+
+        log(f"OPEN_ATTEMPT | file={file_path}")
+        obj.show()
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to open file\n{e}")
+
 
 # =========================
 # Create Secure File
 # =========================
-import os # Make sure this is at the very top of your file!
+def create_secure_file():
 
-# =========================
-# Create Secure File
-# =========================
-def insert_file():
-    def fr(event=None):
-        p1 = e1.get()
-        p2 = e2.get()
+    def save(event=None):
+        duration = int(time_entry.get()) if time_entry.get().isdigit() else 60
+        password = password_entry.get().strip()
+        has_password = bool(password)
+        file_name = filename_entry.get().strip()
 
-        # Input validation
-        time_file = int(p1) if p1.isnumeric() else 60
-        givenPassword = bool(p2.strip())
-        passkey = p2 if givenPassword else ""
+        if not file_name:
+            messagebox.showerror("Error", "Please provide file name")
+            return
 
-        # Create the object
-        tmp = secureimg(root.filename, time_file, givenPassword, passkey)
+        obj = SecureImage(image_path, duration, has_password, password)
 
-        # 1. Ask where to save (Returns a string path)
-        save_path = filedialog.asksaveasfilename(
-            title="Save Secure File",
-            filetypes=(("secure file", "*.skr"),),
-            defaultextension=".skr"
+        save_path = os.path.join(
+            config["default_save_path"],
+            file_name + ".skr"
         )
 
-        if save_path:
-            # 2. Refactor the name: strip old extension and force .skr
-            # os.path.splitext("path/file.png") -> ("path/file", ".png")
-            clean_name = os.path.splitext(save_path)[0] + ".skr"
+        try:
+            with open(save_path, "wb") as f:
+                dump(obj, f)
 
-            # 3. Save the file
-            with open(clean_name, "wb") as f:
-                dump(tmp, f)
-            
-            log(f"SAVED | secure_file={clean_name}")
-            
-            # 4. UI Cleanup
-            inerter.destroy() 
-            messagebox.showinfo("Success", f"File saved successfully as:\n{os.path.basename(clean_name)}")
+            log(f"SAVED | secure_file={save_path}")
+            settings_window.destroy()
+            messagebox.showinfo("Success", f"Saved as:\n{save_path}")
 
-    # Selection of source image
-    root.filename = filedialog.askopenfilename(
+        except Exception as e:
+            messagebox.showerror("Error", f"Save failed\n{e}")
+
+    image_path = filedialog.askopenfilename(
         title="Select Image",
-        filetypes=(("images","*.png *.jpg *.jpeg"),)
+        filetypes=(("Images", "*.png *.jpg *.jpeg"),)
     )
-    
-    if not root.filename:
+    if not image_path:
         return
 
-    # Create the settings popup
-    inerter = Toplevel()
-    inerter.title("Security Settings")
+    settings_window = Toplevel(root)
+    settings_window.title("Security Settings")
 
-    Label(inerter, text="Expire time (seconds)").grid(row=0, column=0, padx=10, pady=5)
-    e1 = Entry(inerter)
-    e1.insert(0, "60") # Default value for convenience
-    e1.grid(row=0, column=1, padx=10)
+    Label(settings_window, text="Expire Time (seconds)").pack(padx=10, pady=5)
+    time_entry = Entry(settings_window)
+    time_entry.insert(0, "60")
+    time_entry.pack(padx=10)
 
-    Label(inerter, text="Password (optional)").grid(row=1, column=0, padx=10, pady=5)
-    e2 = Entry(inerter, show="*")
-    e2.grid(row=1, column=1, padx=10)
+    Label(settings_window, text="Password (optional)").pack(padx=10, pady=5)
+    password_entry = Entry(settings_window, show="*")
+    password_entry.pack(padx=10)
 
-    Button(inerter, text="Secure & Save", command=fr).grid(row=2, column=0, columnspan=2, pady=15)
-    inerter.bind('<Return>', fr)
+    Label(settings_window, text="File Name").pack(padx=10, pady=5)
+    filename_entry = Entry(settings_window)
+    filename_entry.pack(padx=10)
+
+    Button(settings_window, text="Secure & Save", command=save).pack(pady=15)
+    settings_window.bind("<Return>", save)
+
 
 # =========================
-# UI
+# Preferences Window
+# =========================
+def open_preferences():
+    def choose_folder():
+        folder = filedialog.askdirectory()
+        if folder:
+            config["default_save_path"] = folder
+            save_config(config)
+            messagebox.showinfo("Saved", "Default save folder updated")
+            pref_window.destroy()
+
+    pref_window = Toplevel(root)
+    pref_window.title("Preferences")
+
+    Label(pref_window, text="Default Save Folder").pack(padx=20, pady=10)
+    Button(pref_window, text="Choose Folder", command=choose_folder).pack(pady=10)
+
+
+# =========================
+# UI Setup
 # =========================
 root = Tk()
 root.title("Secura")
 root.geometry("800x600")
 
-icon_target = resource_path("icon.ico")
-
-if os.path.exists(icon_target):
+# Safe icon loading
+icon_path = resource_path("icon.ico")
+if os.path.exists(icon_path):
     try:
-        root.iconbitmap(icon_target)
-        log(f"SUCCESS | Loaded icon from {icon_target}")
-    except Exception as e:
-        log(f"ERROR | Icon file exists but Tkinter failed to load it: {e}")
-else:
-    log(f"ERROR | Icon file NOT FOUND at: {icon_target}")
+        img_icon = Image.open(icon_path)
+        tk_icon = ImageTk.PhotoImage(img_icon)
+        root.iconphoto(True, tk_icon)
+    except Exception:
+        pass
 
-
+# Menu
 menu = Menu(root)
 root.config(menu=menu)
 
-m1 = Menu(menu, tearoff=0)
-menu.add_cascade(label="Create File", menu=m1)
-m1.add_command(label="Secure Image", command=insert_file)
+file_menu = Menu(menu, tearoff=0)
+menu.add_cascade(label="Create", menu=file_menu)
+file_menu.add_command(label="Secure Image", command=create_secure_file)
 
-m2 = Menu(menu, tearoff=0)
-menu.add_cascade(label="View File", menu=m2)
-m2.add_command(label="Open Secure File", command=opener)
+view_menu = Menu(menu, tearoff=0)
+menu.add_cascade(label="View", menu=view_menu)
+view_menu.add_command(label="Open Secure File", command=open_secure_file)
 
+menu.add_command(label="Preferences", command=open_preferences)
 menu.add_command(label="Exit", command=root.quit)
+
+# Display Frame
+display_frame = LabelFrame(root, text="Preview", padx=10, pady=10)
+display_frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+image_label = Label(display_frame)
+image_label.pack(expand=True)
+
+# Clear Preview Button
+Button(root, text="Clear Preview", command=clear_preview).pack(pady=5)
 
 root.mainloop()
