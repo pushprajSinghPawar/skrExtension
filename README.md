@@ -47,8 +47,11 @@ Use this method if you want to view the code, make changes, or run the program u
    python Secura.py
    ```
 
-### Option 2: Install .exe from the gtihub-release itself.
-Link :: https://github.com/pushprajSinghPawar/skrExtension/releases/tag/V_1.0
+> **Note:** The codebase has been refactored into a package following SOLID principles. The GUI logic lives in `secura/ui.py` and related modules, and `Secura.py` at the project root now serves only as a small launcher script. You can also start the application with:
+>
+> ```bash
+> python -m secura
+> ```
 
 ## User Docs
 
@@ -66,9 +69,29 @@ To view a secure image file:
 1. Run the program.
 2. Click on "View the File" in the menu.
 3. Select the secure image file (.skr) you want to view.
+   * The dialog will start in your **Default Save Folder** if one has been configured.
 4. The viewer will determine if the file is still valid based on the time period and password protection.
 5. If allowed, the image will be displayed. If not, an error message will be shown.
 
+### Preferences
+
+The Preferences dialog now uses a dropdown/listbox layout instead of file dialogs:
+
+1. Choose which setting to edit from a small list ("Secure File Folder" or "Image Source Folder").
+2. Enter or paste the desired folder path in the text field that appears below.
+3. Click **Save** to store your choice.
+
+> This UI avoids the previous folder‑picker dialogs for a cleaner, more consistent look.
+
+**Behavior reminder:**
+- **Default Image Folder** – used as the starting location when choosing an image to secure.
+- **Default Save Folder** – used as the starting location when opening or saving `.skr` files.
+
+Setting these once means you no longer have to navigate through your filesystem each time.
+
+### Help Panel
+
+Help content has been reorganized into its own module and provides a step‑by‑step user guide. The panel can be toggled with **Help → Help** or the `?` key, expanded, collapsed, and closed with an ✕ button.
 ## Notes
 
 - The secure image viewer checks the time period and password protection to determine if the file can be viewed.

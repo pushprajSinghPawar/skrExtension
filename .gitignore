@@ -6,3 +6,4 @@ secura.log
 secura.log
 output/
 venv
+__pycache__
